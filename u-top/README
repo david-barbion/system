@@ -1,0 +1,9 @@
+Requirements
+~~~~~~~~~~~~
+* ruby 1.8.7 and 1.9.3p194.
+
+Tested system
+~~~~~~~~~~~~~
+* RedHat 5.6 (need at least 5.5 for iowait usage)
+* Ubuntu 12.10
+
