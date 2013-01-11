@@ -117,10 +117,12 @@ class Totaltime
         return(deltatime)
     end
 
+    # return interval between this run and last run
     def get_time_delta
         return(@rundate - @histodate)
     end
 
+    # calculate average cpu usage since last run
     def get_mean_cpu_usage(current,history)
         cpuusage = Hash.new
         self.get_data_delta(current,history).each do |username,usedtime|
@@ -146,6 +148,8 @@ class Totaltime
         end      
         return(iowaitusage)
     end
+    
+    # save new data to history file
     def save_history(file=DEF_HISTORY_FILE)
         begin
             f = File.new(file, File::CREAT|File::TRUNC|File::RDWR, 0644)
@@ -159,7 +163,7 @@ class Totaltime
         end
     end
 
-
+    # load data from history file
     def load_history(file=DEF_HISTORY_FILE)
         begin
             f = File.open(file)
@@ -205,18 +209,73 @@ def output_help
     puts "Usage: #{File.basename(__FILE__)} [ --help ] [ -a ]"
     puts "  -a        Aggregate CPU usage, having percentage for one processor (for 4 CPU, max will be 400%)"
     puts "            Default is to compute percentage over all processors"
+    puts "  -f        Output format"
+    puts "            %u username"
+    puts "            %c cpuusage"
+    puts "            %i iowait"
+    puts "            Default output format is: %-15u%5c%5i"
+    puts "            See printf for advanced output format"
+    puts ""
+ 
 end
 
 aggregate_cpu=false
+output_format="%-15u%5c%5i"
 # Parse command line options
 opts = OptionParser.new
 opts.on('-h', '--help') { output_help; exit 0 }
 opts.on('-a')           { aggregate_cpu=true }
+opts.on('-f FORMAT') do |param|
+    output_format = param
+end
 opts.parse!(ARGV) rescue return false
 
 mytotaltime = Totaltime.new(aggregate_cpu)
-puts "User            CPU%  IO%"
-mytotaltime.get_cpu_usage.each do |username,value|
-    puts "#{username.ljust(15)} #{mytotaltime.get_cpu_usage_for_user(username).to_s.rjust(3)}% #{mytotaltime.get_iowait_usage_for_user(username).to_s.rjust(3)}%"
+
+# this will format the output string from format string
+def print_formated(f,u,c,i)
+    found = Hash.new
+    found["u"] = f.index(/(%[\-\.0-9]*u[0-9]*)/)
+    found["c"] = f.index(/(%[\-\.0-9]*c[0-9]*)/)
+    found["i"] = f.index(/(%[\-\.0-9]*i[0-9]*)/)
+
+    username_output_format = /(%[\-\.0-9]*u[0-9]*)/.match(f)[1].gsub('u', 's') if !found["u"].nil?
+    cpu_usage_output_format = /(%[\-\.0-9]*c[0-9]*)/.match(f)[1].gsub('c', 's') if !found["c"].nil?
+    iowait_usage_output_format = /(%[\-\.0-9]*i[0-9]*)/.match(f)[1].gsub('i', 's') if !found["i"].nil?
+
+    libc_f = f
+
+    libc_f = libc_f.sub(/%[\-\.0-9]*u[0-9]*/, username_output_format) if !found["u"].nil?
+    libc_f = libc_f.sub(/%[\-\.0-9]*c[0-9]*/, cpu_usage_output_format) if !found["c"].nil?
+    libc_f = libc_f.sub(/%[\-\.0-9]*i[0-9]*/, iowait_usage_output_format) if !found["i"].nil?
+    
+    _print_formated(libc_f,create_ordered_output_from_format_string(f,u,c,i))
+end
+
+def _print_formated(f,a)
+    printf(f+"\n",*a)
+end
+
+# this will order username, cpu and iowait according the format string
+def create_ordered_output_from_format_string(f,u,c,i)
+    found = Hash.new
+    found["u"] = f.index(/(%[\-\.0-9]*u[0-9]*)/)
+    found["c"] = f.index(/(%[\-\.0-9]*c[0-9]*)/)
+    found["i"] = f.index(/(%[\-\.0-9]*i[0-9]*)/)
+    positions = Array.new	
+    positions[f.index(/(%[\-\.0-9]*u[0-9]*)/)] = u if !found["u"].nil?
+    positions[f.index(/(%[\-\.0-9]*c[0-9]*)/)] = c if !found["c"].nil?
+    positions[f.index(/(%[\-\.0-9]*i[0-9]*)/)] = i if !found["i"].nil?
+    positions.compact!
+    positions
+end
+
+print_formated(output_format, "User", "CPU%", "IO%")
+
+mytotaltime.get_cpu_usage.each_key do |username|
+    cpu_usage    = mytotaltime.get_cpu_usage_for_user(username).to_s
+    iowait_usage = mytotaltime.get_iowait_usage_for_user(username).to_s
+    output_line = String.new(output_format)
+    print_formated(output_format, username, cpu_usage, iowait_usage) 
 end
 
