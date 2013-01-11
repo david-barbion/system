@@ -7,3 +7,23 @@ Tested system
 * RedHat 5.6 (need at least 5.5 for iowait usage)
 * Ubuntu 12.10
 
+Sample output
+~~~~~~~~~~~~~
+davidb@L200295:~$ utop.rb 
+User            CPU%  IO%
+davidb             8    0
+root               1    0
+statd              0    0
+syslog             0    0
+messagebus         0    0
+avahi              0    0
+colord             0    0
+whoopsie           0    0
+cntlm              0    0
+nobody             0    0
+www-data           0    0
+rtkit              0    0
+lightdm            0    0
+ntp                0    0
+
+As you can see, all process usage (CPU and IOWAIT) are aggregated by username
